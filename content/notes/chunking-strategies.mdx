@@ -1,0 +1,142 @@
+---
+title: "Chunking Strategies for Heterogeneous Enterprise Documents"
+description: "A practical guide to chunking strategies for RAG systems — why fixed-size chunking fails on enterprise PDFs, and how hierarchical, semantic, and table-aware chunking improve retrieval quality."
+date: "2024-09-15"
+tags: ["RAG", "Document AI"]
+draft: false
+---
+
+Chunking is the most underappreciated lever in a RAG system. Get it wrong and you can have perfect embeddings, perfect retrieval, perfect generation — and still ship a system that gives confidently wrong answers.
+
+This post covers what I learned building a RAG system for 10,000+ enterprise documents: financial reports, technical manuals, regulatory filings. The short version: **fixed-size chunking is almost always the wrong default for enterprise docs**, and the right strategy depends on your document structure.
+
+## Why Fixed-Size Chunking Fails
+
+The intuition behind fixed-size chunking (split every N tokens, overlap by M) is sound for uniform text like Wikipedia articles or news. It breaks on enterprise docs for three reasons:
+
+### 1. Tables Are Atomic
+
+A financial table might span 600 tokens. Split at 512 and you get two chunks: one with the headers and first half of rows, another with the remaining rows. Neither chunk alone answers "what was Q3 revenue?" — the LLM needs both, and the retriever almost certainly won't return both in the right order.
+
+The fix is simple: **detect tables and treat them as indivisible nodes**, regardless of length.
+
+```python
+def chunk_document(nodes: list[BaseNode]) -> list[BaseNode]:
+    chunks = []
+    for node in nodes:
+        if node.metadata.get("node_type") == "table":
+            chunks.append(node)  # tables are atomic
+        else:
+            chunks.extend(text_splitter.split(node))
+    return chunks
+```
+
+### 2. Fixed Chunking Severs Section Context
+
+Consider a technical manual section:
+
+```
+Section 3.2: Torque Specifications
+All torque values in this section apply to the 2024 XR-7 model only.
+
+Bolt A: 45 Nm
+Bolt B: 62 Nm
+```
+
+Fixed chunking might put "All torque values in this section apply to the 2024 XR-7 model only" in chunk N and "Bolt A: 45 Nm" in chunk N+1. The retriever returns chunk N+1 for the query "torque for Bolt A" — and the LLM has no idea which model this applies to.
+
+### 3. Overlap Doesn't Solve It
+
+The standard fix (add 20% overlap between chunks) helps at chunk boundaries but is wasteful and still misses long-range section-level context.
+
+## Hierarchical Chunking
+
+The solution that worked best for us: **hierarchical chunking with parent-child relationships**.
+
+The idea:
+- Large parent chunks (2048 tokens) carry section-level context
+- Small leaf chunks (128–256 tokens) are what you embed and retrieve
+- At query time: retrieve leaves, then fetch their parent nodes for the full context window
+
+```python
+from llama_index.core.node_parser import HierarchicalNodeParser
+
+parser = HierarchicalNodeParser.from_defaults(
+    chunk_sizes=[2048, 512, 128]
+)
+nodes = parser.get_nodes_from_documents(docs)
+leaf_nodes = get_leaf_nodes(nodes)  # these get embedded
+
+# At retrieval time:
+# 1. Embed and retrieve leaf nodes
+# 2. Walk up the parent tree to get the 512-token parent
+# 3. Pass parent content to the LLM, not the leaf
+```
+
+This gave us a 23-point MRR improvement over fixed-size chunking on our evaluation set.
+
+## Semantic Chunking
+
+Semantic chunking splits on embedding similarity discontinuities rather than token count. The intuition: when the semantic distance between consecutive sentences spikes, you're at a topic boundary.
+
+```python
+from llama_index.core.node_parser import SemanticSplitterNodeParser
+from llama_index.embeddings.openai import OpenAIEmbedding
+
+splitter = SemanticSplitterNodeParser(
+    buffer_size=1,
+    breakpoint_percentile_threshold=95,
+    embed_model=OpenAIEmbedding(),
+)
+```
+
+**When to use it**: Works well for long-form prose (technical docs, blog posts). Slower and more expensive than fixed-size (requires embedding during chunking). Overkill for highly structured docs where section headers already define natural boundaries.
+
+## Document-Type-Aware Routing
+
+The real win: don't use one chunking strategy for everything. Route each document to the right strategy based on type:
+
+```python
+def get_chunker(doc_type: str) -> BaseNodeParser:
+    match doc_type:
+        case "financial_report":
+            return HierarchicalNodeParser.from_defaults(
+                chunk_sizes=[2048, 256]
+            )
+        case "technical_manual":
+            return SemanticSplitterNodeParser(
+                breakpoint_percentile_threshold=90
+            )
+        case "regulatory_filing":
+            return SentenceWindowNodeParser(window_size=3)
+        case _:
+            return SimpleNodeParser.from_defaults(chunk_size=512)
+```
+
+## Evaluation
+
+Don't iterate on chunking strategies by feel. Build a small golden dataset (50–100 query/answer/relevant-doc triples) and measure retrieval MRR before and after each change.
+
+```python
+def evaluate_chunking(strategy: BaseNodeParser, golden: list[GoldenExample]) -> float:
+    index = build_index(strategy, docs)
+    retriever = VectorIndexRetriever(index=index, similarity_top_k=5)
+    mrrs = []
+    for example in golden:
+        retrieved = retriever.retrieve(example.query)
+        retrieved_ids = [n.node_id for n in retrieved]
+        mrrs.append(mrr(retrieved_ids, {example.relevant_doc_id}))
+    return sum(mrrs) / len(mrrs)
+```
+
+## Summary
+
+| Document Type | Recommended Strategy | Why |
+|---|---|---|
+| Tables (any type) | Atomic (no chunking) | Never split tables |
+| Financial reports | Hierarchical (2048/256) | Dense data, needs context |
+| Technical manuals | Semantic | Natural topic shifts |
+| Regulatory text | Sentence-window | Precise clause reference |
+| Mixed corpus | Route by type | One size fits none |
+
+The most important takeaway: **measure before you iterate**. Chunking intuitions are frequently wrong. A 500-query golden eval set is 2 hours of work and saves weeks of blind tuning.

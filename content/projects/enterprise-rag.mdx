@@ -1,0 +1,180 @@
+---
+title: "Enterprise RAG for 10K+ Document Corpus"
+description: "A production multimodal RAG system for a large enterprise document corpus — handling PDFs, tables, charts, and equations with Docling, LlamaIndex, and a hybrid retrieval pipeline."
+longDescription: "End-to-end RAG pipeline processing 10,000+ heterogeneous enterprise documents. Uses Docling for multimodal extraction, hierarchical chunking strategies, and a hybrid BM25 + dense retrieval pipeline to serve sub-2s accurate answers at enterprise scale."
+tags: ["RAG", "Document AI", "LLM"]
+stack: ["Python", "LlamaIndex", "Docling", "LangChain", "FAISS", "ChromaDB", "AWS Textract", "Azure Document Intelligence", "FastAPI", "Docker", "PyMuPDF", "Unstructured.io"]
+image: "/projects/placeholder.png"
+github: ""
+demo: ""
+featured: true
+date: "2024-08-01"
+status: "live"
+---
+
+## Overview
+
+Enterprise document corpora are notoriously heterogeneous: scanned PDFs, native PDFs with embedded tables, PowerPoints converted to PDF, financial statements with complex multi-column layouts, and technical docs with equations. Off-the-shelf RAG stacks collapse on this variety. This system was built from first principles to handle it.
+
+<Callout type="info">
+The corpus: 10,000+ documents, ~2.5M total pages, spanning financial reports, technical manuals, regulatory filings, and internal knowledge base articles. Query volume: ~500 queries/day in production.
+</Callout>
+
+## Problem
+
+Standard RAG pipelines fail on enterprise docs for three reasons:
+
+1. **Extraction quality** — naive text extraction via PyPDF2 or pdfplumber destroys table structure and misses chart data entirely
+2. **Chunking strategy** — fixed-size chunking splits tables and severs section context, making retrieval unreliable on complex queries
+3. **Retrieval precision** — dense-only retrieval misses exact keyword matches (product codes, regulation IDs) that sparse retrieval handles well
+
+## Architecture
+
+<ArchDiagram
+  src="/projects/enterprise-rag-arch.png"
+  alt="Pipeline diagram: ingestion → extraction → chunking → indexing → retrieval → generation"
+  caption="Full pipeline from raw document to grounded LLM answer"
+/>
+
+### Stage 1: Multimodal Document Extraction
+
+Docling handles the heavy lifting of structured extraction:
+
+```python
+from docling.document_converter import DocumentConverter
+from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.datamodel.base_models import InputFormat
+
+pipeline_options = PdfPipelineOptions(
+    do_table_structure=True,
+    do_ocr=True,
+    table_structure_options={"do_cell_matching": True},
+)
+
+converter = DocumentConverter(
+    format_options={
+        InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+    }
+)
+
+def extract_document(path: str) -> DoclingDocument:
+    result = converter.convert(path)
+    return result.document
+```
+
+For scanned PDFs where Docling's built-in OCR struggles, we fall back to AWS Textract with a confidence threshold gate:
+
+```python
+async def extract_with_fallback(doc_path: str) -> ExtractedDoc:
+    docling_result = extract_document(doc_path)
+    confidence = compute_extraction_confidence(docling_result)
+
+    if confidence < CONFIDENCE_THRESHOLD:
+        # Fall back to Textract for this document
+        textract_result = await textract_client.extract(doc_path)
+        return merge_extractions(docling_result, textract_result)
+
+    return docling_result
+```
+
+### Stage 2: Hierarchical Chunking
+
+Fixed-size chunking is a non-starter for enterprise docs. We use a hierarchical strategy:
+
+```python
+from llama_index.core.node_parser import HierarchicalNodeParser, get_leaf_nodes
+
+parser = HierarchicalNodeParser.from_defaults(
+    chunk_sizes=[2048, 512, 128],  # parent → child → leaf
+)
+
+def chunk_document(doc: DoclingDocument) -> list[BaseNode]:
+    # Convert Docling document to LlamaIndex Document
+    llama_doc = docling_to_llama_doc(doc)
+    nodes = parser.get_nodes_from_documents([llama_doc])
+
+    # Inject table nodes as atomic units — never split tables
+    table_nodes = extract_table_nodes(doc)
+    return nodes + table_nodes
+```
+
+Tables are treated as atomic units: a table is a single node regardless of its length. The table content is serialised as markdown so the LLM can reason over its structure:
+
+```python
+def table_to_node(table: DoclingTable, doc_meta: dict) -> TextNode:
+    md_table = table.export_to_markdown()
+    caption = table.caption or ""
+    content = f"[TABLE]\n{caption}\n\n{md_table}\n[/TABLE]"
+    return TextNode(
+        text=content,
+        metadata={**doc_meta, "node_type": "table", "table_id": table.id},
+    )
+```
+
+### Stage 3: Hybrid Retrieval
+
+Pure dense retrieval misses exact matches. Pure BM25 misses semantic similarity. We run both and fuse with Reciprocal Rank Fusion:
+
+```python
+from llama_index.retrievers.bm25 import BM25Retriever
+from llama_index.core.retrievers import VectorIndexRetriever
+from llama_index.core.retrievers import QueryFusionRetriever
+
+vector_retriever = VectorIndexRetriever(index=vector_index, similarity_top_k=10)
+bm25_retriever = BM25Retriever.from_defaults(index=vector_index, similarity_top_k=10)
+
+hybrid_retriever = QueryFusionRetriever(
+    [vector_retriever, bm25_retriever],
+    similarity_top_k=5,
+    num_queries=1,
+    mode="reciprocal_rerank",
+    use_async=True,
+)
+```
+
+After fusion, a cross-encoder re-ranker (BGE-reranker-large) reorders the top-5 by relevance to the query.
+
+### Stage 4: Grounded Generation
+
+The prompt is engineered to prevent hallucination on enterprise data:
+
+```python
+SYSTEM_PROMPT = """You are an enterprise document assistant. Answer ONLY based on the provided context.
+If the context does not contain enough information to answer the question, say so explicitly.
+Always cite the document name and page number for each claim."""
+
+def generate_answer(query: str, nodes: list[NodeWithScore]) -> AnswerWithCitations:
+    context = build_context_with_citations(nodes)
+    response = llm.complete(
+        prompt=f"{SYSTEM_PROMPT}\n\nContext:\n{context}\n\nQuestion: {query}"
+    )
+    return parse_citations(response.text, nodes)
+```
+
+## Chunking Strategy Deep-Dive
+
+The choice of chunk sizes matters enormously. After A/B testing on a 500-query evaluation set:
+
+| Strategy | MRR@5 | Latency (p95) |
+|---|---|---|
+| Fixed 512 tokens | 0.61 | 340ms |
+| Sentence-window (±2) | 0.68 | 380ms |
+| Hierarchical (2048/512/128) | 0.79 | 420ms |
+| Hierarchical + table isolation | **0.84** | 440ms |
+
+The hierarchical strategy outperforms because parent nodes provide section context during retrieval while leaf nodes provide precise passage content during generation.
+
+## Results
+
+- **10,000+ documents** indexed and queryable
+- **< 2s p95 latency** end-to-end (retrieval + generation)
+- **84% MRR@5** on internal evaluation set (vs 61% for naive chunking baseline)
+- Handles tables, charts (via caption extraction), equations, and multi-column layouts
+- Zero hallucination rate on factual queries with verifiable citations (validated on 200-query human eval)
+
+## What I'd Do Differently
+
+1. **Evaluation-driven development from day one** — I added the eval framework halfway through. Building the 500-query golden set first would have saved 3 weeks of blind tuning.
+2. **Async ingestion pipeline** — the current ingestion is synchronous per document. With 10K docs, parallelising Docling extraction with an async queue would cut ingestion time from 14 hours to ~2.
+3. **Chunk caching** — re-chunking unchanged documents on each indexing run is wasteful. A content hash → chunk cache would eliminate redundant work on incremental updates.
+4. **Separate dense indices by document type** — financial reports and technical manuals have very different vocabulary distributions. Per-type indices with query routing would likely push MRR past 0.90.

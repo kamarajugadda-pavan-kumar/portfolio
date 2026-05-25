@@ -1,0 +1,28 @@
+---
+title: "Domain Adaptation with LoRA Fine-Tuning"
+description: "A reproducible LoRA/PEFT fine-tuning pipeline for adapting open-source LLMs to domain-specific tasks — with data curation, training, evaluation, and GGUF export."
+longDescription: "End-to-end pipeline for fine-tuning LLaMA-3 / Mistral variants on domain-specific instruction datasets using QLoRA, with automated evaluation and GGUF quantization for local inference."
+tags: ["ML", "LLM"]
+stack: ["Python", "PyTorch", "Hugging Face Transformers", "PEFT", "TRL", "bitsandbytes", "Unsloth", "GGUF", "Ollama"]
+image: "/projects/placeholder.png"
+github: ""
+demo: ""
+featured: false
+date: "2025-02-01"
+status: "in-progress"
+---
+
+## Overview
+
+Placeholder — full case study coming soon.
+
+This pipeline fine-tunes open-source LLMs (LLaMA-3-8B, Mistral-7B) on domain-specific instruction datasets using QLoRA for memory efficiency, with automated evaluation on held-out benchmarks and GGUF export for local inference via Ollama.
+
+## Quick Notes
+
+- 4-bit quantization via bitsandbytes — fine-tunes 8B models on a single 24GB GPU
+- Unsloth for 2× training speed with flash attention
+- Custom data curation pipeline: web scraping → LLM-assisted annotation → deduplication
+- Evaluation: MT-Bench style prompts + domain-specific test set
+
+Full write-up in progress.

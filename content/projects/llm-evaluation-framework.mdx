@@ -1,0 +1,67 @@
+---
+title: "LLM Evaluation Framework"
+description: "A lightweight, extensible evaluation harness for RAG systems — measuring retrieval quality, faithfulness, and answer correctness without relying on expensive GPT-4 judges."
+longDescription: "An open evaluation framework for GenAI systems that combines automated metrics (ROUGE, BERTScore, RAGAS), LLM-as-judge for qualitative scoring, and a golden dataset management system."
+tags: ["RAG", "Tooling", "LLM"]
+stack: ["Python", "RAGAS", "LangChain", "Pandas", "NumPy", "FastAPI", "SQLite", "Streamlit"]
+image: "/projects/placeholder.png"
+github: ""
+demo: ""
+featured: true
+date: "2025-01-01"
+status: "in-progress"
+---
+
+## Overview
+
+Evaluating RAG systems in production is unsolved. Existing tools (RAGAS, TruLens) are useful but opinionated — they assume a specific RAG topology and make GPT-4 judge calls for every metric, making continuous evaluation expensive at scale.
+
+This framework is designed for daily automated evaluation on a rolling query sample, with a Streamlit dashboard for tracking metric drift over time.
+
+> **Note:** This project is actively in development. The retrieval metrics and golden dataset tooling are complete; the LLM judge and dashboard are in progress.
+
+## Architecture
+
+The framework has three layers:
+
+1. **Data layer** — Golden dataset management (query, expected answer, relevant doc IDs)
+2. **Metrics layer** — Automated metrics + optional LLM judge
+3. **Reporting layer** — SQLite time-series storage + Streamlit dashboard
+
+## Key Metrics Implemented
+
+### Retrieval Metrics (no LLM required)
+
+```python
+def context_precision(retrieved_ids: list[str], relevant_ids: list[str]) -> float:
+    """Fraction of retrieved docs that are actually relevant."""
+    relevant_retrieved = len(set(retrieved_ids) & set(relevant_ids))
+    return relevant_retrieved / len(retrieved_ids) if retrieved_ids else 0.0
+
+def context_recall(retrieved_ids: list[str], relevant_ids: list[str]) -> float:
+    """Fraction of relevant docs that were retrieved."""
+    relevant_retrieved = len(set(retrieved_ids) & set(relevant_ids))
+    return relevant_retrieved / len(relevant_ids) if relevant_ids else 0.0
+
+def mrr(retrieved_ids: list[str], relevant_ids: set[str]) -> float:
+    """Mean Reciprocal Rank."""
+    for rank, doc_id in enumerate(retrieved_ids, start=1):
+        if doc_id in relevant_ids:
+            return 1.0 / rank
+    return 0.0
+```
+
+### Faithfulness (LLM judge)
+
+Coming soon — will use a fine-tuned DeBERTa NLI model to check that each claim in the answer is entailed by the retrieved context, avoiding GPT-4 judge costs.
+
+## Status
+
+- [x] Golden dataset CLI tooling
+- [x] Retrieval precision / recall / MRR
+- [x] BERTScore for answer similarity
+- [ ] LLM faithfulness judge (DeBERTa NLI)
+- [ ] Streamlit dashboard
+- [ ] GitHub Actions integration for CI evals
+
+More details coming as the project ships.
