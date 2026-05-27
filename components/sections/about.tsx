@@ -4,15 +4,32 @@ import { motion } from "framer-motion";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
 
 const stats = [
-  { label: "Years of Experience", value: "3+" },
-  { label: "Projects Shipped", value: "10+" },
-  { label: "Technologies Used", value: "20+" },
-  { label: "Enterprise Documents Processed", value: "50K+" },
+  { label: "Years of Experience", value: "5+" },
+  { label: "Projects Shipped", value: "7+" },
+  // { label: "Technologies Used", value: "20+" },
+  // { label: "Enterprise Documents Processed", value: "50K+" },
+];
+
+const coreStack = [
+  "Python",
+  "React",
+  "Node.js (Express.js)",
+  "FastAPI",
+  "AWS",
+  "GCP",
+  "LangChain",
+  "LangGraph",
+  "RAG",
+  "AgenticAI",
+  "MongoDB",
+  "Mysql",
+  "Docker",
+  "kubernetes",
 ];
 
 const currentlyBuilding = [
+  "Agentic job search tool — LangGraph + Playwright that autonomously finds, scores, and applies to roles end-to-end",
   "Multimodal RAG systems for complex enterprise PDFs",
-  "LangGraph-powered agentic workflows with human-in-the-loop",
   "Fine-tuning open-source LLMs with LoRA/PEFT",
   "Evaluation frameworks for RAG system quality",
 ];
@@ -42,29 +59,31 @@ export function About() {
               className="space-y-4 text-muted-foreground leading-relaxed"
             >
               <p>
-                I&apos;m a Generative AI & ML Engineer based in Hyderabad,
-                India, with ~3 years of Python application development
-                experience. I specialise in building intelligent systems that
-                sit at the intersection of large language models and real
-                enterprise data — RAG pipelines, agentic automation, and
-                document AI solutions that handle production scale.
+                I&apos;m a Senior Software Engineer with 5+ years of experience
+                building production systems — Python & Node.js backends, React
+                frontends, and cloud-deployed APIs. Over the last two years
+                I&apos;ve gone deep on applied GenAI: RAG pipelines, agentic
+                workflows, and LLM-powered applications that ship to real users
+                at enterprise scale.
               </p>
               <p>
-                My recent work includes an enterprise-grade RAG system that
-                processes 10,000+ heterogeneous documents using multimodal
-                extraction (tables, charts, equations) and an agentic job
-                search tool built on LangGraph that orchestrates Playwright
-                browser automation with persistent SQLite state. I care deeply
-                about system reliability, latency, and the boring details that
-                separate prototypes from production.
+                One recent project is an enterprise-grade RAG system that
+                processes 10,000+ heterogeneous documents — PDFs, tables,
+                charts, and equations at production scale. Another is an agentic
+                job search tool built on LangGraph that uses Playwright browser
+                automation to autonomously find, score, and apply to roles,
+                cutting manual effort by ~80%. I care deeply about system
+                reliability, latency, and the details that separate prototypes
+                from production.
               </p>
               <p>
-                When I&apos;m not engineering AI systems, I write about
-                technical challenges I&apos;ve worked through — chunking
-                strategies for complex PDFs, tradeoffs in RAG retrieval, and
-                practical lessons from deploying agentic workflows. I&apos;m
-                actively targeting senior GenAI / ML engineering roles (CL8/CL9
-                level) where I can drive architecture decisions.
+                Outside of work, I&apos;m usually reading about whatever is
+                moving fast in the tech world — research papers, engineering
+                blogs, release notes. I enjoy picking up new tools and ideas and
+                turning them into quick prototypes. Curiosity is the habit
+                I&apos;m most proud of.I&apos;m actively targeting Senior
+                Software engineer / AI Engineer roles where I can drive
+                architecture decisions.
               </p>
             </motion.div>
 
@@ -110,23 +129,7 @@ export function About() {
                 Core Stack
               </h3>
               <div className="flex flex-wrap gap-2">
-                {[
-                  "Python",
-                  "LangChain",
-                  "LangGraph",
-                  "LlamaIndex",
-                  "PyTorch",
-                  "RAG",
-                  "FAISS",
-                  "ChromaDB",
-                  "Docling",
-                  "FastAPI",
-                  "SQLite",
-                  "Playwright",
-                  "Docker",
-                  "AWS",
-                  "Azure",
-                ].map((tech) => (
+                {coreStack.map((tech) => (
                   <span
                     key={tech}
                     className="rounded-md border border-border/60 bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground"
@@ -143,7 +146,8 @@ export function About() {
                 Open to Opportunities
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Actively seeking Senior GenAI / ML Engineer roles. CL8/CL9 target. Remote or Hyderabad.
+                Actively seeking Senior Software engineer / AI Engineer roles.
+                Remote or Hyderabad.
               </p>
             </div>
           </motion.div>

@@ -27,7 +27,7 @@ export function Hero() {
         >
           <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-400" />
-            Open to senior AI engineering roles
+            Open to Senior SWE / AI Engineer roles
           </span>
         </motion.div>
 
@@ -37,8 +37,7 @@ export function Hero() {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="mt-4 text-4xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl"
         >
-          Hi, I&apos;m{" "}
-          <span className="text-primary">Pavan Kumar</span>
+          Hi, I&apos;m <span className="text-primary">Pavan Kumar</span>
         </motion.h1>
 
         <motion.p
@@ -47,12 +46,16 @@ export function Hero() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl"
         >
-          I build production-grade GenAI systems —{" "}
-          <span className="text-foreground font-medium">RAG pipelines</span>,{" "}
-          <span className="text-foreground font-medium">agentic workflows</span>
+          Senior Software Engineer specialising in applied AI — I build{" "}
+          <span className="text-foreground font-medium">
+            Python & Node.js backends
+          </span>
+          , <span className="text-foreground font-medium">React frontends</span>
           , and{" "}
-          <span className="text-foreground font-medium">ML applications</span>{" "}
-          that solve real enterprise problems.
+          <span className="text-foreground font-medium">
+            LLM-powered systems
+          </span>{" "}
+          that ship to real users at enterprise scale.
         </motion.p>
 
         <motion.div
@@ -68,16 +71,23 @@ export function Hero() {
             </Link>
           </Button>
           <Button asChild variant="outline" size="lg" className="gap-2">
-            <a href="/resume.pdf" download>
+            <a href="/pavan_kumar_kamarajugadda_resume.pdf" download>
               <Download className="h-4 w-4" />
               Download Resume
             </a>
           </Button>
           <Button asChild variant="ghost" size="lg" className="gap-2">
-            <Link href="/#contact">
+            <a
+              href="/#contact"
+              onClick={(e) => {
+                document
+                  .getElementById("contact")
+                  ?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
               <Mail className="h-4 w-4" />
               Get in Touch
-            </Link>
+            </a>
           </Button>
         </motion.div>
 
@@ -89,11 +99,12 @@ export function Hero() {
         >
           {[
             "Python",
+            "Node.js",
+            "React",
             "LangGraph",
-            "LlamaIndex",
-            "PyTorch",
             "RAG",
-            "Vector DBs",
+            "FastAPI",
+            "GenAI",
           ].map((tech) => (
             <span key={tech} className="flex items-center gap-1.5">
               <span className="text-primary">▸</span> {tech}
