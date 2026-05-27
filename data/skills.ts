@@ -22,7 +22,7 @@ export const skillGroups: SkillGroup[] = [
       "Prompt Engineering",
       "OpenAI API",
       "Anthropic API",
-      "Vector DBs",
+      "Vector DBs (FAISS, ChromaDB)",
       "Embeddings",
     ],
   },
@@ -35,8 +35,6 @@ export const skillGroups: SkillGroup[] = [
       "Pandas",
       "scikit-learn",
       "Hugging Face Transformers",
-      "FAISS",
-      "ChromaDB",
     ],
   },
   {

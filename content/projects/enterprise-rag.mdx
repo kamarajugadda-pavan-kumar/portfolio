@@ -1,9 +1,24 @@
 ---
+displayPriority: 2
 title: "Enterprise RAG for 10K+ Document Corpus"
 description: "A production multimodal RAG system for a large enterprise document corpus — handling PDFs, tables, charts, and equations with Docling, LlamaIndex, and a hybrid retrieval pipeline."
 longDescription: "End-to-end RAG pipeline processing 10,000+ heterogeneous enterprise documents. Uses Docling for multimodal extraction, hierarchical chunking strategies, and a hybrid BM25 + dense retrieval pipeline to serve sub-2s accurate answers at enterprise scale."
 tags: ["RAG", "Document AI", "LLM"]
-stack: ["Python", "LlamaIndex", "Docling", "LangChain", "FAISS", "ChromaDB", "AWS Textract", "Azure Document Intelligence", "FastAPI", "Docker", "PyMuPDF", "Unstructured.io"]
+stack:
+  [
+    "Python",
+    "LlamaIndex",
+    "Docling",
+    "LangChain",
+    "FAISS",
+    "ChromaDB",
+    "AWS Textract",
+    "Azure Document Intelligence",
+    "FastAPI",
+    "Docker",
+    "PyMuPDF",
+    "Unstructured.io",
+  ]
 image: "/projects/placeholder.png"
 github: ""
 demo: ""
@@ -17,7 +32,9 @@ status: "live"
 Enterprise document corpora are notoriously heterogeneous: scanned PDFs, native PDFs with embedded tables, PowerPoints converted to PDF, financial statements with complex multi-column layouts, and technical docs with equations. Off-the-shelf RAG stacks collapse on this variety. This system was built from first principles to handle it.
 
 <Callout type="info">
-The corpus: 10,000+ documents, ~2.5M total pages, spanning financial reports, technical manuals, regulatory filings, and internal knowledge base articles. Query volume: ~500 queries/day in production.
+  The corpus: 10,000+ documents, ~2.5M total pages, spanning financial reports,
+  technical manuals, regulatory filings, and internal knowledge base articles.
+  Query volume: ~500 queries/day in production.
 </Callout>
 
 ## Problem
@@ -155,12 +172,12 @@ def generate_answer(query: str, nodes: list[NodeWithScore]) -> AnswerWithCitatio
 
 The choice of chunk sizes matters enormously. After A/B testing on a 500-query evaluation set:
 
-| Strategy | MRR@5 | Latency (p95) |
-|---|---|---|
-| Fixed 512 tokens | 0.61 | 340ms |
-| Sentence-window (±2) | 0.68 | 380ms |
-| Hierarchical (2048/512/128) | 0.79 | 420ms |
-| Hierarchical + table isolation | **0.84** | 440ms |
+| Strategy                       | MRR@5    | Latency (p95) |
+| ------------------------------ | -------- | ------------- |
+| Fixed 512 tokens               | 0.61     | 340ms         |
+| Sentence-window (±2)           | 0.68     | 380ms         |
+| Hierarchical (2048/512/128)    | 0.79     | 420ms         |
+| Hierarchical + table isolation | **0.84** | 440ms         |
 
 The hierarchical strategy outperforms because parent nodes provide section context during retrieval while leaf nodes provide precise passage content during generation.
 

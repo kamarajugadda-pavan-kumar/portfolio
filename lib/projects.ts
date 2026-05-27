@@ -24,6 +24,7 @@ export interface Project {
   featured: boolean;
   date: string;
   status: "live" | "in-progress" | "archived";
+  displayPriority: number;
   content: string;
 }
 
@@ -47,6 +48,7 @@ function parseProject(slug: string): Project {
     featured: (data.featured as boolean) ?? false,
     date: data.date as string,
     status: (data.status as Project["status"]) ?? "live",
+    displayPriority: (data.displayPriority as number) ?? 999,
     content,
   };
 }
@@ -56,7 +58,7 @@ export function getAllProjects(): Project[] {
   const slugs = files.map((f) => f.replace(/\.mdx$/, ""));
   return slugs
     .map(parseProject)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => a.displayPriority - b.displayPriority);
 }
 
 export function getFeaturedProjects(): Project[] {

@@ -2,36 +2,34 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Mail, Calendar } from "lucide-react";
+import { Mail } from "lucide-react";
 import { GitHubIcon, LinkedInIcon, XIcon } from "@/components/icons";
 import { fadeInUp, staggerContainer } from "@/lib/motion";
-import { Button } from "@/components/ui/button";
-import { ContactForm } from "@/components/contact-form";
 
 const socialLinks = [
   {
-    href: "https://github.com/pavankumar",
+    href: "https://github.com/kamarajugadda-pavan-kumar",
     icon: GitHubIcon,
     label: "GitHub",
-    handle: "@pavankumar",
+    handle: "kamarajugadda-pavan-kumar",
   },
   {
-    href: "https://linkedin.com/in/pavankumar",
+    href: "https://www.linkedin.com/in/pavan-kumar-kamarajugadda/",
     icon: LinkedInIcon,
     label: "LinkedIn",
-    handle: "Pavan Kumar",
+    handle: "Pavan Kumar kamarajugadda",
   },
   {
-    href: "https://twitter.com/pavankumar",
+    href: "https://x.com/lollapalooza_00",
     icon: XIcon,
     label: "Twitter / X",
-    handle: "@pavankumar",
+    handle: "@lollapalooza_00",
   },
   {
-    href: "mailto:pavankd12@gmail.com",
+    href: "mailto:kamarajugaddapavankumar@gmail.com",
     icon: Mail,
     label: "Email",
-    handle: "pavankd12@gmail.com",
+    handle: "kamarajugaddapavankumar@gmail.com",
   },
 ];
 
@@ -44,61 +42,46 @@ export function Contact() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
-          className="grid gap-16 lg:grid-cols-2"
         >
-          <div>
-            <motion.div variants={fadeInUp}>
-              <span className="font-mono text-sm text-primary">05 / contact</span>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
-                Get in Touch
-              </h2>
-              <p className="mt-4 text-muted-foreground">
-                I&apos;m open to senior AI engineering roles and interesting
-                collaborations. Whether you have a specific role in mind or just
-                want to discuss AI architecture, I&apos;d love to hear from you.
-              </p>
-            </motion.div>
-
-            <motion.div variants={fadeInUp} className="mt-8 space-y-3">
-              {socialLinks.map(({ href, icon: Icon, label, handle }) => (
-                <Link
-                  key={label}
-                  href={href}
-                  target={href.startsWith("mailto") ? undefined : "_blank"}
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-4 rounded-lg border border-border/60 bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent"
-                >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-muted text-muted-foreground">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <div>
-                    <div className="text-sm font-medium text-foreground">
-                      {label}
-                    </div>
-                    <div className="font-mono text-xs text-muted-foreground">
-                      {handle}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </motion.div>
-
-            <motion.div variants={fadeInUp} className="mt-6">
-              <Button asChild variant="outline" className="gap-2">
-                <a
-                  href="https://cal.com/pavankumar"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Calendar className="h-4 w-4" />
-                  Book a 30-min chat
-                </a>
-              </Button>
-            </motion.div>
-          </div>
-
           <motion.div variants={fadeInUp}>
-            <ContactForm />
+            <span className="font-mono text-sm text-primary">
+              05 / contact
+            </span>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+              Get in Touch
+            </h2>
+            <p className="mt-4 max-w-2xl text-muted-foreground">
+              I&apos;m open to senior AI engineering roles and interesting
+              collaborations. Whether you have a specific role in mind or just
+              want to discuss AI architecture, I&apos;d love to hear from you.
+            </p>
+          </motion.div>
+
+          <motion.div
+            variants={fadeInUp}
+            className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          >
+            {socialLinks.map(({ href, icon: Icon, label, handle }) => (
+              <Link
+                key={label}
+                href={href}
+                target={href.startsWith("mailto") ? undefined : "_blank"}
+                rel="noopener noreferrer"
+                className="flex items-center gap-4 rounded-lg border border-border/60 bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted text-muted-foreground">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-foreground">
+                    {label}
+                  </div>
+                  <div className="truncate font-mono text-xs text-muted-foreground">
+                    {handle}
+                  </div>
+                </div>
+              </Link>
+            ))}
           </motion.div>
         </motion.div>
       </div>

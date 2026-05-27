@@ -1,9 +1,20 @@
 ---
+displayPriority: 1
 title: "Agentic Job Search Automation Tool"
 description: "A multi-agent LangGraph system that autonomously searches, filters, and applies to job listings using browser automation — reducing manual job hunting time by ~80%."
 longDescription: "An end-to-end agentic pipeline built on LangGraph that orchestrates Playwright browser automation, LLM-based job relevance scoring, and persistent SQLite state management to automate the job search workflow."
 tags: ["Agents", "Automation", "Tooling"]
-stack: ["Python", "LangGraph", "LangChain", "Playwright", "SQLite", "OpenAI API", "FastAPI", "Docker"]
+stack:
+  [
+    "Python",
+    "LangGraph",
+    "LangChain",
+    "Playwright",
+    "SQLite",
+    "OpenAI API",
+    "FastAPI",
+    "Docker",
+  ]
 image: "/projects/placeholder.png"
 github: "https://github.com/pavankumar/agentic-job-search"
 demo: ""
@@ -17,12 +28,15 @@ status: "live"
 Manual job searching is a repetitive, high-friction workflow: search → filter → read JD → assess fit → apply → track. I built this tool to automate the entire pipeline using a multi-agent LangGraph graph, with Playwright handling browser-level interactions and SQLite maintaining persistent state across runs.
 
 <Callout type="tip">
-The key insight: each "agent" in the graph is a narrowly scoped node with clear input/output contracts. This makes the graph composable, testable, and easy to extend with new job boards.
+  The key insight: each "agent" in the graph is a narrowly scoped node with
+  clear input/output contracts. This makes the graph composable, testable, and
+  easy to extend with new job boards.
 </Callout>
 
 ## Problem
 
 Job searching at scale requires:
+
 - Visiting 5–8 job boards daily
 - Manually filtering hundreds of listings based on role, stack, and location criteria
 - Reading full JDs to assess fit before applying
@@ -156,16 +170,24 @@ def is_duplicate(job_id: str) -> bool:
 
 <Steps>
   <Step title="LangGraph over raw LangChain agents">
-    LangGraph's explicit state machine model gave us predictable error recovery — when the `apply_node` fails on a specific listing, the graph logs the error to `state.errors` and continues rather than halting the entire run.
+    LangGraph's explicit state machine model gave us predictable error recovery
+    — when the `apply_node` fails on a specific listing, the graph logs the
+    error to `state.errors` and continues rather than halting the entire run.
   </Step>
   <Step title="Persistent browser context">
-    Using Playwright's `launch_persistent_context` instead of a fresh browser per run maintains cookies and session state, avoiding repeated CAPTCHA challenges on job boards that rate-limit headless browsers.
+    Using Playwright's `launch_persistent_context` instead of a fresh browser
+    per run maintains cookies and session state, avoiding repeated CAPTCHA
+    challenges on job boards that rate-limit headless browsers.
   </Step>
   <Step title="SQLite over Redis for deduplication">
-    For a single-user tool running locally, SQLite's zero-infra footprint beats Redis. The application table is indexed on `job_id` (a hash of title + company + URL), making duplicate checks sub-millisecond.
+    For a single-user tool running locally, SQLite's zero-infra footprint beats
+    Redis. The application table is indexed on `job_id` (a hash of title +
+    company + URL), making duplicate checks sub-millisecond.
   </Step>
   <Step title="Structured output for scoring">
-    Using `response_format=JobScore` (Pydantic model) with GPT-4o-mini guarantees machine-readable scores without prompt engineering fragility. The `apply: bool` field is the only gate to the apply node.
+    Using `response_format=JobScore` (Pydantic model) with GPT-4o-mini
+    guarantees machine-readable scores without prompt engineering fragility. The
+    `apply: bool` field is the only gate to the apply node.
   </Step>
 </Steps>
 
