@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowDown, Download, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,9 +22,26 @@ export function Hero() {
 
       <div className="relative z-10 mx-auto max-w-4xl text-center">
         <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="mb-6 flex justify-center"
+        >
+          <div className="relative h-28 w-28 overflow-hidden rounded-full ring-4 ring-primary/20 ring-offset-2 ring-offset-background">
+            <Image
+              src="/projects/avatar.jpeg"
+              alt="Pavan Kumar"
+              fill
+              className="object-cover"
+              priority
+            />
+          </div>
+        </motion.div>
+
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
         >
           <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-400" />
@@ -34,7 +52,7 @@ export function Hero() {
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
           className="mt-4 text-4xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl"
         >
           Hi, I&apos;m <span className="text-primary">Pavan Kumar</span>

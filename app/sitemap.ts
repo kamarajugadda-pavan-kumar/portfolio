@@ -2,6 +2,8 @@ import type { MetadataRoute } from "next";
 import { getAllProjectSlugs } from "@/lib/projects";
 import { getAllNoteSlugs } from "@/lib/notes";
 
+export const dynamic = "force-static";
+
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://pavankumar.dev";
 
 export default function sitemap(): MetadataRoute.Sitemap {
