@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -107,6 +108,13 @@ pre {
   padding: 1.25rem 1.5rem;
   font-size: 0.875rem;
   line-height: 1.7;
+  border: 1px solid hsl(var(--border));
+}
+
+/* Heading anchor links should inherit heading color, not link blue */
+.prose :where(h1, h2, h3, h4) a {
+  color: inherit;
+  text-decoration: none;
 }
 
 pre > code {
@@ -115,6 +123,17 @@ pre > code {
 
 code {
   font-family: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* Apply shiki dual-theme colors */
+[data-theme="github-dark github-light"] span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+
+.dark [data-theme="github-dark github-light"] span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
 }
 
 .prose {

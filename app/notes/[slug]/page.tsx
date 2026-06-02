@@ -8,6 +8,7 @@ import { getNote, getAllNoteSlugs } from "@/lib/notes";
 import { formatDate } from "@/lib/utils";
 import { mdxOptions } from "@/lib/mdx";
 import { Callout } from "@/components/project/mdx-components";
+import { CodeBlock } from "@/components/ui/code-block";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-const mdxComponents = { Callout };
+const mdxComponents = { Callout, pre: CodeBlock };
 
 export default async function NotePage({ params }: Props) {
   const { slug } = await params;

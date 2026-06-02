@@ -10,6 +10,10 @@ Chunking is the most underappreciated lever in a RAG system. Get it wrong and yo
 
 This post covers what I learned building a RAG system for 10,000+ enterprise documents: financial reports, technical manuals, regulatory filings. The short version: **fixed-size chunking is almost always the wrong default for enterprise docs**, and the right strategy depends on your document structure.
 
+<Callout type="warning">
+  Choosing the wrong chunking strategy is one of the top reasons RAG systems underperform in production — and it's almost never caught in early prototypes because toy datasets hide the problem.
+</Callout>
+
 ## Why Fixed-Size Chunking Fails
 
 The intuition behind fixed-size chunking (split every N tokens, overlap by M) is sound for uniform text like Wikipedia articles or news. It breaks on enterprise docs for three reasons:
