@@ -1,0 +1,274 @@
+---
+title: "Deploying a Static Next.js App to AWS (S3 + CloudFront + Route 53)"
+description: "A production-grade walkthrough of hosting a fully static Next.js site on AWS: S3 for storage, CloudFront as a CDN, Route 53 for DNS, OIDC-based CI/CD, and a CloudFront Function to keep deep links from breaking."
+date: "2026-06-03"
+tags: ["AWS", "Next.js", "DevOps", "CI/CD"]
+draft: false
+---
+
+Vercel is the easiest way to deploy a Next.js app, but it's not always the right choice — especially when you want fine-grained control over infra, avoid vendor lock-in, or already have an AWS account with budget. This post walks through every step I took to host my portfolio on AWS in a way that I'd call genuinely production-grade.
+
+The final architecture looks like this:
+
+```
+Browser → Route 53 (DNS) → CloudFront (CDN) + CloudFront Function (URL rewriting) → S3 (private bucket)
+                                                                                        ↑
+                                                                                    GitHub Actions (OIDC)
+```
+
+No EC2, no containers, no server to maintain. Just static files served at the edge.
+
+---
+
+## Step 1 — Export a Fully Static Build
+
+Next.js can emit a folder of plain HTML, CSS, and JS with no server required. Enable this in `next.config.ts`:
+
+```ts
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  pageExtensions: ["ts", "tsx", "mdx"],
+  images: {
+    unoptimized: true,
+  },
+  output: "export",
+  trailingSlash: true,
+};
+
+export default nextConfig;
+```
+
+Running `npm run build` now produces an `out/` directory. Everything inside is self-contained and can be served from any static host.
+
+<Callout type="info">
+  Static export means no API routes, no server-side rendering, and no
+  `getServerSideProps`. If your app needs these, you'll need a different
+  approach (Lambda@Edge, ECS, etc.). For a portfolio or docs site, static export
+  is ideal.
+</Callout>
+
+---
+
+## Step 2 — Create an S3 Bucket (Private)
+
+Create an S3 bucket to hold the build output. The key decision here: **keep the bucket private**. Never enable public access on the bucket itself.
+
+Why? Because you want CloudFront to be the only entry point to your content. This gives you:
+
+- A single layer where you can enforce HTTPS
+- Cache invalidation control
+- Security headers and rate limiting (if needed later)
+- Protection against hotlinking or direct-bucket URL exposure
+
+In the AWS Console, create a new bucket and leave "Block all public access" **enabled** (the default). Don't configure static website hosting on the bucket — that's CloudFront's job.
+
+---
+
+## Step 3 — Create a CloudFront Distribution with Origin Access Control
+
+CloudFront is AWS's CDN. It caches your files at 400+ edge locations worldwide and serves them to users from the nearest one. It's also what makes your private S3 bucket accessible to the public in a controlled way.
+
+### Origin Access Control (OAC)
+
+OAC is the mechanism that lets CloudFront read from a private S3 bucket. When you create a distribution:
+
+1. Set the **Origin domain** to your S3 bucket's regional endpoint (not the website endpoint).
+2. Under **Origin access**, choose **Origin access control (recommended)** and create a new OAC.
+3. AWS will show you a bucket policy to add to S3 — apply it. This policy grants `s3:GetObject` permission exclusively to your CloudFront distribution's service principal.
+
+After this, your bucket remains fully private, but CloudFront can read from it.
+
+<Callout type="warning">
+  OAC replaced the older Origin Access Identity (OAI). If you find tutorials
+  still using OAI, they're outdated. OAC is more secure and supports additional
+  AWS features like SSE-KMS encryption.
+</Callout>
+
+### Other Distribution Settings
+
+- **Viewer protocol policy**: Redirect HTTP to HTTPS. Always.
+- **Cache policy**: Use `CachingOptimized` for static assets. CloudFront will respect `Cache-Control` headers you set at upload time (more on this in the CI step).
+- **Compress objects automatically**: Enable it. CloudFront will gzip/br responses for free.
+- **Default root object**: Set to `index.html`.
+
+---
+
+## Step 4 — Buy a Domain and Point DNS to CloudFront
+
+I bought my domain from Hostinger because it's significantly cheaper than Route 53's own registrar or GoDaddy for `.in` domains. You can register anywhere — Route 53 only needs to become the authoritative nameserver, not the registrar.
+
+### Transfer DNS to Route 53
+
+1. In Route 53, create a **Hosted Zone** for your domain (e.g., `pavankamarajugadda.in`).
+2. Route 53 will give you 4 nameserver (NS) records.
+3. Log in to Hostinger (or wherever you registered) and replace the default nameservers with these 4 Route 53 nameservers.
+
+DNS propagation can take up to 48 hours but is usually done in under an hour.
+
+### Create an SSL Certificate in ACM
+
+CloudFront requires SSL certificates to be in **us-east-1** (N. Virginia), regardless of where your users or bucket are.
+
+1. Go to AWS Certificate Manager in `us-east-1`.
+2. Request a public certificate for your domain (e.g., `portfolio.pavankamarajugadda.in`).
+3. Choose DNS validation and add the CNAME record ACM gives you into Route 53.
+4. Wait a few minutes for validation, then attach the certificate to your CloudFront distribution.
+
+### Add the A Record in Route 53
+
+Create an **A record** for your subdomain (e.g., `portfolio.pavankamarajugadda.in`):
+
+- **Record type**: A
+- **Alias**: Yes
+- **Route traffic to**: Alias to CloudFront distribution
+- Select your distribution from the dropdown
+
+Using an Alias record (instead of a CNAME) is important for a root domain or subdomain — it resolves at the DNS layer and avoids an extra hop. Route 53 does not charge for Alias queries to AWS resources.
+
+---
+
+## Step 5 — Fix Deep Links with a CloudFront Function
+
+This is the step most tutorials skip, and the one that will definitely bite you in production.
+
+When a user visits `portfolio.pavankamarajugadda.in/notes/aws-deployment` directly (hard reload, shared link), the browser requests `/notes/aws-deployment` from CloudFront. CloudFront looks for that exact key in S3. It doesn't exist — the actual file is `/notes/aws-deployment/index.html` (Next.js static export convention). The result is a 403 or 404.
+
+A **CloudFront Function** runs at the edge before the request hits the origin. You use it to rewrite the URL:
+
+```js
+function handler(event) {
+  var request = event.request;
+  var uri = request.uri;
+
+  // If the URI has no extension, assume it's a page and append /index.html
+  if (!uri.includes(".")) {
+    if (uri.endsWith("/")) {
+      request.uri = uri + "index.html";
+    } else {
+      request.uri = uri + "/index.html";
+    }
+  }
+
+  return request;
+}
+```
+
+Create this function in the CloudFront console and associate it with the **Viewer Request** event on your distribution. Now every deep link resolves correctly, even on hard reload.
+
+<Callout type="info">
+  CloudFront Functions are lightweight JavaScript that runs at 200+ edge
+  locations with sub-millisecond latency. For URL rewriting, they're the right
+  tool — cheaper and faster than Lambda@Edge.
+</Callout>
+
+---
+
+## Step 6 — CI/CD with GitHub Actions and OIDC
+
+The last piece is automating deployments so that every push to `main` syncs the new build to S3 automatically. The right way to do this in 2024+ is **OIDC (OpenID Connect)** — no long-lived AWS keys stored as GitHub secrets.
+
+### How OIDC Works
+
+Instead of an IAM user with access keys, you create an IAM role that GitHub Actions can assume temporarily. The trust relationship is:
+
+```
+GitHub Actions → presents OIDC token → AWS verifies against GitHub's OIDC provider → issues short-lived credentials
+```
+
+No secrets rotate, no keys expire, no credential leak risk.
+
+### Set Up the IAM OIDC Provider
+
+In AWS IAM, add an Identity Provider:
+
+- **Provider URL**: `https://token.actions.githubusercontent.com`
+- **Audience**: `sts.amazonaws.com`
+
+### Create an IAM Role
+
+Create a role with:
+
+- **Trust policy**: allows `sts:AssumeRoleWithWebIdentity` from your specific GitHub repo (not all repos — scope it to `repo:your-username/your-repo:ref:refs/heads/main`)
+- **Permissions policy**: `s3:PutObject`, `s3:DeleteObject`, `s3:ListBucket` on your bucket only
+
+Store the role ARN as a GitHub secret (`AWS_ROLE_ARN`). Also store `AWS_REGION` and `S3_BUCKET_NAME`.
+
+### The Workflow
+
+```yaml
+name: Deploy to S3
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write # required for OIDC token request
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy static assets to S3 (long cache)
+        run: |
+          aws s3 sync out/_next/static/ s3://${{ secrets.S3_BUCKET_NAME }}/_next/static/ \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable"
+
+      - name: Deploy HTML and other files to S3 (no cache)
+        run: |
+          aws s3 sync out/ s3://${{ secrets.S3_BUCKET_NAME }} \
+            --delete \
+            --exclude "_next/static/*" \
+            --cache-control "public, max-age=0, must-revalidate"
+```
+
+### Why Two Separate Sync Steps?
+
+Next.js hashes static asset filenames (e.g., `_next/static/chunks/abc123.js`). These hashes change when the content changes — so a file with a given name is **immutable forever**. You can safely tell browsers and CloudFront to cache these for a year (`max-age=31536000, immutable`).
+
+HTML files, on the other hand, are not hashed. `index.html` always has the same name but different content after each deploy. Setting `max-age=0, must-revalidate` ensures users always get the latest HTML, which in turn references the new hashed assets.
+
+This split strategy is how you get both fast asset delivery and instant updates on deploy.
+
+---
+
+## The Complete Picture
+
+| Component                 | What it does                           | Why this choice                                      |
+| ------------------------- | -------------------------------------- | ---------------------------------------------------- |
+| **S3 (private)**          | Stores the static build                | Cheap, durable, scales infinitely                    |
+| **CloudFront**            | CDN + HTTPS termination                | Global edge caching, free SSL via ACM                |
+| **OAC**                   | Grants CloudFront access to private S3 | Keeps bucket private, CloudFront is the only ingress |
+| **ACM (us-east-1)**       | SSL certificate                        | Required by CloudFront, free                         |
+| **Route 53**              | DNS management                         | Alias records to CloudFront, tight AWS integration   |
+| **Hostinger**             | Domain registrar                       | Cheap `.in` domains                                  |
+| **CloudFront Function**   | URL rewriting at the edge              | Fixes deep link 404s without a server                |
+| **GitHub Actions + OIDC** | CI/CD                                  | No long-lived secrets, automatic deploys on push     |
+
+The whole setup costs roughly $0.50–$2/month for a low-traffic portfolio (S3 storage + CloudFront requests + Route 53 hosted zone). It handles traffic spikes without any configuration, serves files at the edge globally, and deploys automatically on every `git push`.
