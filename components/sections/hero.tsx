@@ -45,7 +45,7 @@ export function Hero() {
         >
           <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-400" />
-            Open to Senior SWE / AI Engineer roles
+            Senior SWE / AI Engineer
           </span>
         </motion.div>
 

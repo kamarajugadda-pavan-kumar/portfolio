@@ -44,16 +44,14 @@ export function Contact() {
           viewport={{ once: true, margin: "-80px" }}
         >
           <motion.div variants={fadeInUp}>
-            <span className="font-mono text-sm text-primary">
-              05 / contact
-            </span>
+            <span className="font-mono text-sm text-primary">05 / contact</span>
             <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
               Get in Touch
             </h2>
             <p className="mt-4 max-w-2xl text-muted-foreground">
-              I&apos;m open to senior AI engineering roles and interesting
-              collaborations. Whether you have a specific role in mind or just
-              want to discuss AI architecture, I&apos;d love to hear from you.
+              Building something interesting? Let&apos;s talk — whether it&apos;s
+              a technical deep-dive, an AI architecture discussion, or just an
+              idea worth exploring.
             </p>
           </motion.div>
 

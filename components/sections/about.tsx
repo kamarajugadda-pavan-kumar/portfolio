@@ -140,7 +140,7 @@ export function About() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-6">
+            {/* <div className="rounded-lg border border-primary/20 bg-primary/5 p-6">
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <span className="inline-block h-2 w-2 rounded-full bg-green-400" />
                 Open to Opportunities
@@ -149,7 +149,7 @@ export function About() {
                 Actively seeking Senior Software engineer / AI Engineer roles.
                 Remote or Hyderabad.
               </p>
-            </div>
+            </div> */}
           </motion.div>
         </motion.div>
       </div>
